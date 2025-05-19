@@ -5,6 +5,10 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 
+from keep_alive import keep_alive
+
+keep_alive()  
+
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 

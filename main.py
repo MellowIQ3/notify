@@ -4,6 +4,10 @@ from discord import app_commands
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from keep_alive import keep_alive
+
+# keep_alive を呼び出して Flask サーバーを起動
+keep_alive()
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")

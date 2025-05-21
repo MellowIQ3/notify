@@ -5,10 +5,6 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 
-from keep_alive import keep_alive
-
-keep_alive()  
-
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -31,7 +27,7 @@ async def on_ready():
 def is_admin(interaction: discord.Interaction) -> bool:
     return interaction.user.guild_permissions.manage_guild
 
-@bot.tree.command(name="notify", description="入室通知をON/OFF切り替えます", guild=discord.Object(id=TARGET_GUILD_ID))
+@bot.tree.command(name="join_notify", description="入室通知をON/OFF切り替えます", guild=discord.Object(id=TARGET_GUILD_ID))
 @app_commands.describe(mode="on または off を指定してください")
 async def notify(interaction: discord.Interaction, mode: str):
     if interaction.guild_id != TARGET_GUILD_ID:
@@ -99,5 +95,60 @@ async def on_member_join(member):
     embed.set_footer(text="入室通知")
 
     await channel.send(embed=embed)
+
+from datetime import datetime, timezone  # 既に読み込んでいる場合は不要
+
+leave_notify_settings = {}
+
+@bot.tree.command(name="leave_notify", description="退出通知をON/OFF切り替えます", guild=discord.Object(id=TARGET_GUILD_ID))
+@app_commands.describe(mode="on または off を指定してください")
+async def leave_notify(interaction: discord.Interaction, mode: str):
+    if interaction.guild_id != TARGET_GUILD_ID:
+        return
+
+    if not is_admin(interaction):
+        await interaction.response.send_message("❌ 管理者権限が必要です。", ephemeral=True)
+        return
+
+    mode = mode.lower()
+    if mode == "on":
+        if interaction.guild_id not in notification_channels:
+            await interaction.response.send_message("⚠️ 先に /setchannel で通知チャンネルを設定してください。", ephemeral=True)
+            return
+        leave_notify_settings[interaction.guild_id] = True
+        await interaction.response.send_message("✅ 退出通知をONにしました。", ephemeral=True)
+    elif mode == "off":
+        leave_notify_settings[interaction.guild_id] = False
+        await interaction.response.send_message("🚫 退出通知をOFFにしました。", ephemeral=True)
+    else:
+        await interaction.response.send_message("❌ 'on' または 'off' を指定してください。", ephemeral=True)
+
+@bot.event
+async def on_member_remove(member):
+    if member.guild.id != TARGET_GUILD_ID:
+        return
+    if not leave_notify_settings.get(member.guild.id, False):  # ここだけ変更
+        return
+    channel_id = notification_channels.get(member.guild.id)
+    if not channel_id:
+        return
+    channel = member.guild.get_channel(channel_id)
+    if not channel:
+        return
+
+    now = datetime.now(timezone.utc).astimezone()
+    timestamp_str = now.strftime("%Y/%m/%d %H:%M:%S")
+
+    embed = discord.Embed(
+        title="メンバーが退出しました",
+        description=f"{member.name}#{member.discriminator} さんがサーバーを退出しました。",
+        color=discord.Color.red()
+    )
+    embed.add_field(name="退出時刻", value=timestamp_str, inline=False)
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.set_footer(text="退出通知")
+
+    await channel.send(embed=embed)
+
 
 bot.run(TOKEN)

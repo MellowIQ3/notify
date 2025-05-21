@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
+import psutil
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 
@@ -17,6 +18,15 @@ TARGET_GUILD_ID = 1328638885659545682  # ここにギルドIDを入れてくだ�
 
 notify_settings = {}
 notification_channels = {}
+
+@tasks.loop(seconds=30)  # 30秒ごとにステータス更新
+async def update_status():
+    cpu_percent = psutil.cpu_percent()
+    memory = psutil.virtual_memory()
+    mem_percent = memory.percent
+
+    activity = discord.Game(name=f"CPU: {cpu_percent}% | MEM: {mem_percent}%")
+    await bot.change_presence(activity=activity, status=discord.Status.dnd)  # invisibleなら「オフライン表示」
 
 @bot.event
 async def on_ready():
